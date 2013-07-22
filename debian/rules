@@ -1,0 +1,125 @@
+#!/usr/bin/make -f
+# Derived from:
+# Sample debian/rules that uses debhelper,
+# GNU copyright 1997 by Joey Hess.
+# Copyright Ron Lee 2003, 2004, 2007, 2008
+
+SHELL = /bin/bash
+
+#export DH_VERBOSE=1
+export DH_OPTIONS
+
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+DEB_HOST_ARCH_CPU  ?= $(shell dpkg-architecture -qDEB_HOST_ARCH_CPU)
+
+
+objdir            = objs
+objdir_sse        = objs-sse
+objdir_fixedpoint = objs-fixed-point
+
+all_objs  = $(objdir) $(objdir_sse) $(objdir_fixedpoint)
+arch_objs = $(objdir)
+
+ifeq ($(DEB_HOST_ARCH_CPU),i386)
+arch_objs += $(objdir_sse)
+endif
+
+
+clean:
+	dh_testdir
+	dh_testroot
+	$(RM) *-stamp
+	$(RM) -r $(all_objs) doc/{html,man,latex}
+	dh_clean
+
+
+# This first empty one is equivalent to declaring it .SECONDARY while we have
+# no target specific variables to set.  We don't want it removed by default as
+# an unnamed intermediate file when the build target is completed.
+$(objdir)/config.status:
+$(objdir_sse)/config.status:        EXTRA_CONFIG_FLAGS += --enable-sse
+$(objdir_fixedpoint)/config.status: EXTRA_CONFIG_FLAGS += --enable-fixed-point
+
+%/config.status: configure
+	dh_testdir
+	mkdir -p $*
+	cd $* && ../configure --host=$(DEB_HOST_GNU_TYPE)	\
+			      --build=$(DEB_BUILD_GNU_TYPE)	\
+			      --prefix=/usr			\
+			      $(EXTRA_CONFIG_FLAGS)
+
+build: build-arch
+
+build-arch: $(foreach d,$(arch_objs),build-target-$(d)-stamp)
+build-target-%-stamp : %/config.status
+	dh_testdir
+	cd $* && $(MAKE)
+	touch $@
+
+build-indep: build-indep-stamp
+build-indep-stamp:
+	dh_testdir
+	doxygen Doxyfile
+	touch $@
+
+
+install: install-arch install-indep
+
+install-arch: install-arch-stamp
+install-arch-stamp:
+	dh_testdir
+	cd $(objdir) && $(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+	if [ -d "$(objdir_sse)" ]; then								  \
+	    dh_install -plibspeex1    $(objdir_sse)/libspeex/.libs/libspeex.so.*    usr/lib/sse2; \
+	    dh_install -plibspeexdsp1 $(objdir_sse)/libspeex/.libs/libspeexdsp.so.* usr/lib/sse2; \
+	fi
+	touch $@
+
+install-indep:
+
+
+binary: binary-indep binary-arch
+
+binary-indep: DH_OPTIONS = -i
+binary-indep: build-indep install-indep
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary-arch: build-arch install-arch
+	dh_testdir
+	dh_testroot
+	dh_install -a --sourcedir=debian/tmp
+	dh_installdocs -a
+	dh_installman -a
+	dh_installchangelogs -a
+	dh_strip -a
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -plibspeex1 -V"libspeex1 (>= 1.2~beta3-1)"
+	dh_makeshlibs -plibspeexdsp1 -V"libspeexdsp1 (>= 1.2~beta3.2-1)"
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+
+.PHONY: clean build build-arch build-indep install install-arch install-indep \
+	binary binary-arch binary-indep
+
