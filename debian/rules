@@ -44,7 +44,7 @@ clean:
 # This first empty one is equivalent to declaring it .SECONDARY while we have
 # no target specific variables to set.  We don't want it removed by default as
 # an unnamed intermediate file when the build target is completed.
-$(objdir)/config.status:
+$(objdir)/config.status:            EXTRA_CONFIG_FLAGS += --enable-neon --enable-resample-full-sinc-table
 $(objdir_sse)/config.status:        EXTRA_CONFIG_FLAGS += --enable-sse
 $(objdir_fixedpoint)/config.status: EXTRA_CONFIG_FLAGS += --enable-fixed-point
 
