@@ -1,3 +1,9 @@
+speex (1.2~rc1-2genesi1) maverick; urgency=low
+
+  * Bump
+
+ -- Ahmed Ammar <aammar@genesi-usa.com>  Mon, 29 Jul 2013 15:13:22 -0400
+
 speex (1.2~rc1-1ubuntu1) lucid; urgency=low
 
   * Drop ARMv4 configuration flags so ARM builds use floating point instead of
